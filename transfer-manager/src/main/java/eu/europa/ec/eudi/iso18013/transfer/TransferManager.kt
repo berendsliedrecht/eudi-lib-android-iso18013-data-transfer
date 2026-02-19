@@ -19,19 +19,11 @@ import android.content.Context
 import android.content.Intent
 import eu.europa.ec.eudi.iso18013.transfer.engagement.DeviceRetrievalMethod
 import eu.europa.ec.eudi.iso18013.transfer.engagement.NfcEngagementService
-import eu.europa.ec.eudi.iso18013.transfer.readerauth.ReaderTrustStore
-import eu.europa.ec.eudi.iso18013.transfer.response.RequestProcessor
-import eu.europa.ec.eudi.iso18013.transfer.response.Response
-import eu.europa.ec.eudi.wallet.document.DocumentManager
-import org.multipaz.mdoc.zkp.ZkSystemRepository
 
 /**
  * Transfer manager interface for managing the transfer of data between the wallet and the reader.
  */
 interface TransferManager : TransferEvent.Listenable {
-
-    val requestProcessor: RequestProcessor
-
     /**
      * Set retrieval methods
      *
@@ -61,12 +53,10 @@ interface TransferManager : TransferEvent.Listenable {
     fun startEngagementToApp(intent: Intent)
 
     /**
-     * Sends response bytes to the connected reader
-     * To generate the response, use the [RequestProcessor.ProcessedRequest.Success.generateResponse]
-     * method.
-     * @param response The response to be sent
+     * Sends response bytes to the connected reader method.
+     * @param deviceResponseBytes
      */
-    fun sendResponse(response: Response)
+    fun sendResponse(deviceResponseBytes: DeviceResponseBytes)
 
     /**
      * Closes the connection and clears the data of the session
@@ -89,24 +79,15 @@ interface TransferManager : TransferEvent.Listenable {
          * standards.
          *
          * @param context
-         * @param documentManager
-         * @param readerTrustStore
          * @param retrievalMethods
-         * @param zkSystemRepository
          * @return a [TransferManagerImpl]
          */
         @JvmStatic
         fun getDefault(
             context: Context,
-            documentManager: DocumentManager,
-            readerTrustStore: ReaderTrustStore? = null,
             retrievalMethods: List<DeviceRetrievalMethod>? = null,
-            zkSystemRepository: ZkSystemRepository? = null
         ): TransferManager = TransferManagerImpl(context) {
-            documentManager(documentManager)
-            readerTrustStore?.let { readerTrustStore(it) }
             retrievalMethods?.let { retrievalMethods(it) }
-            zkSystemRepository?.let { zkSystemRepository(it) }
         }
     }
 }

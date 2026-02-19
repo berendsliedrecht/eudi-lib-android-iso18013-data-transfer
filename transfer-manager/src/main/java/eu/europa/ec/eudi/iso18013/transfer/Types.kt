@@ -20,3 +20,4 @@ typealias DeviceResponseBytes = ByteArray
 typealias SessionTranscriptBytes = ByteArray
 typealias DeviceRequestBytes = ByteArray
 typealias IntentToRetain = Boolean
+typealias QrCode = String

@@ -18,14 +18,6 @@ package eu.europa.ec.eudi.iso18013.transfer.internal
 import android.content.Context
 import android.os.Build
 import androidx.core.content.ContextCompat
-import eu.europa.ec.eudi.iso18013.transfer.response.DisclosedDocuments
-import eu.europa.ec.eudi.iso18013.transfer.response.RequestedDocuments
-import eu.europa.ec.eudi.wallet.document.DocType
-import eu.europa.ec.eudi.wallet.document.DocumentId
-import eu.europa.ec.eudi.wallet.document.DocumentManager
-import eu.europa.ec.eudi.wallet.document.IssuedDocument
-import eu.europa.ec.eudi.wallet.document.format.MsoMdocFormat
-import java.security.cert.X509Certificate
 import java.util.concurrent.Executor
 
 internal val Any.TAG: String
@@ -47,54 +39,4 @@ internal fun Context.mainExecutor(): Executor {
     } else {
         ContextCompat.getMainExecutor(applicationContext)
     }
-}
-
-internal val List<X509Certificate>.cn: String
-    get() = firstOrNull()
-        ?.subjectX500Principal
-        ?.name
-        ?.split(",")
-        ?.map { it.split("=", limit = 2) }
-        ?.firstOrNull { it.size == 2 && it[0] == "CN" }
-        ?.get(1)
-        ?.trim()
-        ?: ""
-
-internal suspend fun DocumentManager.getValidIssuedMsoMdocDocuments(docType: DocType): List<IssuedDocument> {
-    return getDocuments()
-        .filter { it.format is MsoMdocFormat && (it.format as MsoMdocFormat).docType == docType }
-        .filterIsInstance<IssuedDocument>()
-        .filter { it.findCredential() != null } // Filter out documents without credentials
-}
-
-internal suspend fun DocumentManager.getValidIssuedMsoMdocDocumentById(documentId: DocumentId): IssuedDocument {
-    return getDocumentById(documentId)
-        ?.takeIf { it.format is MsoMdocFormat }
-        ?.takeIf { it is IssuedDocument }
-        ?.let { it as IssuedDocument }
-        ?.takeIf { it.findCredential() != null }
-        ?: throw IllegalArgumentException("Invalid document")
-}
-
-/**
- * Filters the disclosed documents to only include the requested documents and items
- */
-internal fun DisclosedDocuments.filterWithRequestedDocuments(requestedDocuments: RequestedDocuments): DisclosedDocuments {
-
-    return DisclosedDocuments(
-        this
-        .mapNotNull { disclosedDocument ->
-            requestedDocuments.firstOrNull { it.documentId == disclosedDocument.documentId }
-                ?.let { requestedDocument ->
-                    Pair(disclosedDocument, requestedDocument)
-                }
-        }.map {
-            val disclosedDocument = it.first
-            val requestedDocument = it.second
-
-            disclosedDocument.disclosedItems
-                .filter { disclosedItem -> disclosedItem in requestedDocument.requestedItems }
-                .let { disclosedItems -> disclosedDocument.copy(disclosedItems = disclosedItems) }
-        }
-    )
 }

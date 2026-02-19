@@ -92,35 +92,15 @@ android {
 
 dependencies {
     implementation(libs.appcompat)
-    implementation(libs.eudi.document.manager)
     implementation(libs.multipaz.android) {
-        exclude(group = "org.bouncycastle")
         exclude(group = "io.ktor")
     }
     implementation(libs.multipaz.android.legacy) {
-        exclude(group = "org.bouncycastle")
         exclude(group = "io.ktor")
     }
 
     implementation(libs.kotlinx.io.core)
     implementation(libs.kotlinx.io.bytestring)
-
-    // Zxing for qr code
-    implementation(libs.zxing.core)
-
-    // Bouncy Castle
-    implementation(libs.bouncy.castle.prov)
-    implementation(libs.bouncy.castle.pkix)
-
-    testImplementation(kotlin("test"))
-    testImplementation(libs.mockk)
-    testImplementation(libs.json)
-    testImplementation(libs.mockito.inline)
-    testImplementation(libs.mockito.kotlin)
-    testImplementation(libs.robolectric.robolectric)
-
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
 }
 
 // Dependency check

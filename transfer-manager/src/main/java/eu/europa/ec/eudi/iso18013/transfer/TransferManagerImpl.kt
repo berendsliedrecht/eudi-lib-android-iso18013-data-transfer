@@ -20,7 +20,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
-import androidx.annotation.VisibleForTesting
 import com.android.identity.android.mdoc.deviceretrieval.DeviceRetrievalHelper
 import eu.europa.ec.eudi.iso18013.transfer.engagement.DeviceRetrievalMethod
 import eu.europa.ec.eudi.iso18013.transfer.engagement.NfcEngagementService
@@ -29,17 +28,8 @@ import eu.europa.ec.eudi.iso18013.transfer.internal.QrEngagement
 import eu.europa.ec.eudi.iso18013.transfer.internal.TAG
 import eu.europa.ec.eudi.iso18013.transfer.internal.stopPresentation
 import eu.europa.ec.eudi.iso18013.transfer.internal.transportOptions
-import eu.europa.ec.eudi.iso18013.transfer.readerauth.ReaderTrustStore
-import eu.europa.ec.eudi.iso18013.transfer.readerauth.ReaderTrustStoreAware
-import eu.europa.ec.eudi.iso18013.transfer.response.RequestProcessor
-import eu.europa.ec.eudi.iso18013.transfer.response.Response
-import eu.europa.ec.eudi.iso18013.transfer.response.device.DeviceRequest
-import eu.europa.ec.eudi.iso18013.transfer.response.device.DeviceRequestProcessor
-import eu.europa.ec.eudi.iso18013.transfer.response.device.DeviceResponse
-import eu.europa.ec.eudi.wallet.document.DocumentManager
 import org.multipaz.mdoc.origininfo.OriginInfo
 import org.multipaz.mdoc.origininfo.OriginInfoDomain
-import org.multipaz.mdoc.zkp.ZkSystemRepository
 import org.multipaz.util.Constants
 
 /**
@@ -50,48 +40,36 @@ import org.multipaz.util.Constants
  *
  * @constructor Create a Transfer Manager
  * @param context application context
- * @param requestProcessor request processor for processing the device request and generating the response
  * @param retrievalMethods list of device retrieval methods to be used for the transfer
  */
 class TransferManagerImpl @JvmOverloads constructor(
     context: Context,
-    override val requestProcessor: RequestProcessor,
     retrievalMethods: List<DeviceRetrievalMethod>? = null,
-) : TransferManager, ReaderTrustStoreAware {
+) : TransferManager {
     private val context = context.applicationContext
-
-    override var readerTrustStore: ReaderTrustStore?
-        get() = (requestProcessor as? ReaderTrustStoreAware)?.readerTrustStore
-        set(value) {
-            (requestProcessor as? ReaderTrustStoreAware)?.readerTrustStore = value
-        }
 
     /**
      * Device retrieval helper instance
      */
     @JvmSynthetic
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal var deviceRetrievalHelper: DeviceRetrievalHelper? = null
 
     /**
      * Engagement to app instance
      */
     @JvmSynthetic
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal var engagementToApp: EngagementToApp? = null
 
     /**
      * QR engagement instance
      */
     @JvmSynthetic
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal var qrEngagement: QrEngagement? = null
 
     /**
      * Flag to check if the transfer has started
      */
     @JvmSynthetic
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal var hasStarted = false
 
     /**
@@ -107,7 +85,6 @@ class TransferManagerImpl @JvmOverloads constructor(
      * List of transfer event listeners
      */
     @JvmSynthetic
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal val transferEventListeners = mutableListOf<TransferEvent.Listener>()
 
     /**
@@ -181,14 +158,10 @@ class TransferManagerImpl @JvmOverloads constructor(
                 transferEventListeners.onTransferEvent(TransferEvent.Connected)
             },
             onNewDeviceRequest = { deviceRequestBytes ->
-                val deviceRequest = DeviceRequest(
-                    deviceRequestBytes,
-                    deviceRetrievalHelper?.sessionTranscript!!
-                )
                 transferEventListeners.onTransferEvent(
                     TransferEvent.RequestReceived(
-                        processedRequest = requestProcessor.process(deviceRequest),
-                        request = deviceRequest
+                        deviceRequestBytes,
+                        deviceRetrievalHelper?.sessionTranscript!!
                     )
                 )
             },
@@ -220,16 +193,12 @@ class TransferManagerImpl @JvmOverloads constructor(
                 transferEventListeners.onTransferEvent(TransferEvent.Connected)
             }
             onNewDeviceRequest = { deviceRequestBytes ->
-                val deviceRequest = DeviceRequest(
-                    deviceRequestBytes,
-                    deviceRetrievalHelper?.sessionTranscript!!
-                )
                 transferEventListeners.onTransferEvent(
-                    TransferEvent.RequestReceived(
-                        processedRequest = requestProcessor.process(deviceRequest),
-                        request = deviceRequest
+                        TransferEvent.RequestReceived(
+                            deviceRequestBytes,
+                            deviceRetrievalHelper?.sessionTranscript!!
+                        )
                     )
-                )
             }
             onDisconnected = {
                 transferEventListeners.onTransferEvent(TransferEvent.Disconnected)
@@ -292,15 +261,11 @@ class TransferManagerImpl @JvmOverloads constructor(
                 transferEventListeners.onTransferEvent(TransferEvent.Connected)
             },
             onNewRequest = { deviceRequestBytes ->
-                val deviceRequest = DeviceRequest(
-                    deviceRequestBytes,
-                    deviceRetrievalHelper?.sessionTranscript!!
-                )
                 transferEventListeners.onTransferEvent(
-                    TransferEvent.RequestReceived(
-                        processedRequest = requestProcessor.process(deviceRequest),
-                        request = deviceRequest
-                    )
+                        TransferEvent.RequestReceived(
+                            deviceRequestBytes,
+                            deviceRetrievalHelper?.sessionTranscript!!
+                        )
                 )
             },
             onDisconnected = {
@@ -316,17 +281,9 @@ class TransferManagerImpl @JvmOverloads constructor(
         hasStarted = true
     }
 
-    /**
-     * Sends the response bytes to the connected mdoc verifier
-     * To generate the response, use the [eu.europa.ec.eudi.iso18013.transfer.response.device.ProcessedDeviceRequest.generateResponse]
-     * that is provided by the [eu.europa.ec.eudi.iso18013.transfer.TransferEvent.RequestReceived] event.
-     * @param response the response to send
-     * @throws IllegalArgumentException if the response is not a [DeviceResponse]
-     */
-    override fun sendResponse(response: Response) {
-        require(response is DeviceResponse) { "Response must be a DeviceResponse" }
+    override fun sendResponse(deviceResponseBytes: DeviceResponseBytes) {
         deviceRetrievalHelper?.sendDeviceResponse(
-            response.deviceResponseBytes,
+            deviceResponseBytes,
             Constants.SESSION_DATA_STATUS_SESSION_TERMINATION
         )
         transferEventListeners.onTransferEvent(TransferEvent.ResponseSent)
@@ -395,35 +352,13 @@ class TransferManagerImpl @JvmOverloads constructor(
     /**
      * Builder class for instantiating a [TransferManager] implementation
      *
-     * @property documentManager document manager instance
-     * @property readerTrustStore reader trust store instance
      * @property retrievalMethods list of device retrieval methods
-     * @property zkSystemRepository ZK system repository instance
      * @constructor
      * @param context
      */
     class Builder(context: Context) {
         private val context = context.applicationContext
-        var documentManager: DocumentManager? = null
-        var readerTrustStore: ReaderTrustStore? = null
         var retrievalMethods: List<DeviceRetrievalMethod>? = null
-        var zkSystemRepository: ZkSystemRepository? = null
-
-        /**
-         * Document manager instance that will be used to retrieve the requested documents
-         * @param documentManager
-         */
-        fun documentManager(documentManager: DocumentManager) = apply {
-            this.documentManager = documentManager
-        }
-
-        /**
-         * Reader trust store instance that will be used to verify the reader's certificate
-         * @param readerTrustStore
-         */
-        fun readerTrustStore(readerTrustStore: ReaderTrustStore) = apply {
-            this.readerTrustStore = readerTrustStore
-        }
 
         /**
          * Retrieval methods that will be used to retrieve the device request from the mdoc verifier
@@ -433,27 +368,12 @@ class TransferManagerImpl @JvmOverloads constructor(
             apply { this.retrievalMethods = retrievalMethods }
 
         /**
-         * ZK system repository that holds the zero-knowledge proof systems
-         * @param zkSystemRepository
-         */
-        fun zkSystemRepository(zkSystemRepository: ZkSystemRepository) = apply {
-            this.zkSystemRepository = zkSystemRepository
-        }
-
-        /**
          * Build a [eu.europa.ec.eudi.iso18013.transfer.TransferManagerImpl] instance
-         * with [DeviceRequestProcessor] instance
          * @return [eu.europa.ec.eudi.iso18013.transfer.TransferManagerImpl]
          */
         fun build(): TransferManagerImpl {
-            requireNotNull(documentManager) { "Document manager must be provided" }
             return TransferManagerImpl(
                 context = context,
-                requestProcessor = DeviceRequestProcessor(
-                    documentManager = documentManager!!,
-                    readerTrustStore = readerTrustStore,
-                    zkSystemRepository = zkSystemRepository
-                ),
                 retrievalMethods = retrievalMethods ?: emptyList()
             )
         }

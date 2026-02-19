@@ -16,9 +16,6 @@
 package eu.europa.ec.eudi.iso18013.transfer
 
 import android.content.Intent
-import eu.europa.ec.eudi.iso18013.transfer.engagement.QrCode
-import eu.europa.ec.eudi.iso18013.transfer.response.Request
-import eu.europa.ec.eudi.iso18013.transfer.response.RequestProcessor
 import java.net.URI
 
 /**
@@ -43,12 +40,12 @@ sealed interface TransferEvent {
 
     /**
      * Request received event. This event is triggered when the request is received.
-     * @property processedRequest the processed request containing the requested documents
-     * @property request the request containing the raw data received
+     * @property deviceRequestBytes the device request bytes
+     * @property sessionTranscriptBytes the session transcript bytes
      */
     data class RequestReceived(
-        val processedRequest: RequestProcessor.ProcessedRequest,
-        val request: Request
+        val deviceRequestBytes: ByteArray,
+        val sessionTranscriptBytes: ByteArray
     ) : TransferEvent
 
     /**

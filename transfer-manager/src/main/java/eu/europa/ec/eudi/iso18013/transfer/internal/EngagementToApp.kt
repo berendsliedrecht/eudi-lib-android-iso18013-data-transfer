@@ -16,10 +16,9 @@
 package eu.europa.ec.eudi.iso18013.transfer.internal
 
 import android.content.Context
+import android.net.Uri
 import android.util.Base64
 import android.util.Log
-import androidx.annotation.VisibleForTesting
-import androidx.core.net.toUri
 import com.android.identity.android.mdoc.deviceretrieval.DeviceRetrievalHelper
 import com.android.identity.android.mdoc.transport.DataTransport
 import com.android.identity.android.mdoc.transport.DataTransportOptions
@@ -90,7 +89,6 @@ internal class EngagementToApp(
 ) {
 
     @JvmSynthetic
-    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     internal val eDevicePrivateKey = Crypto.createEcPrivateKey(EcCurve.P256)
 
     private val presentationListener = object : DeviceRetrievalHelper.Listener {
@@ -121,7 +119,7 @@ internal class EngagementToApp(
         reverseEngagementUri: String,
         origins: List<OriginInfo>,
     ) {
-        val uri = reverseEngagementUri.toUri()
+        val uri = Uri.parse(reverseEngagementUri)
         check(uri.scheme.equals("mdoc")) { "Only supports mdoc URIs" }
 
         val encodedReaderEngagement = Base64.decode(
